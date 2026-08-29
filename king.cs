@@ -238,7 +238,7 @@ class MinimalAiApp : Form {
             Dock = DockStyle.Top,
             Height = 42,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
-            Padding = new Padding(18, 0, 0, 0) // без відступів по вертикалі і справа, щоб кнопки були на всю висоту і впритул до краю
+            Padding = new Padding(16, 0, 0, 0) // без відступів по вертикалі і справа, щоб кнопки були на всю висоту і впритул до краю
         };
 
         void DragWindow(object? s, MouseEventArgs args) {   // допоміжна функція перетягування вікна за заголовок
@@ -278,6 +278,12 @@ class MinimalAiApp : Form {
             BackColor = System.Drawing.Color.FromArgb(60, 60, 60)
         };
         dragSpacer.MouseDown += DragWindow;
+
+        var urlContainer = new NonClientPanel { // контейнер для центрування рядка вводу по висоті 42px
+            Dock = DockStyle.Fill,
+            Padding = new Padding(2, 2, 2, 2), // симетричні відступи зверху, знизу та з боків
+            BackColor = Color.Transparent
+        };
 
         urlInput = new TextBox {   // вбудований у заголовок адресний рядок
             Dock = DockStyle.Fill,
