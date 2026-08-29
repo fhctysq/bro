@@ -60,7 +60,6 @@ class MinimalAiApp : Form {
             int y = unchecked((short)((long)m.LParam >> 16));
             var screenPoint = new Point(x, y);
             var clientPoint = this.PointToClient(screenPoint);
-            const int b = 8; // ширина ділянки захоплення для зміни розміру вікна мишкою (в пікселях)
 
             if (this.WindowState == FormWindowState.Normal) {   // зміна розмірів вікна (працює тільки у звичайному стані вікна)
                 if (clientPoint.Y <= BORDER_WIDTH) {
@@ -98,6 +97,24 @@ class MinimalAiApp : Form {
         }
 
         base.WndProc(ref m);
+    }
+
+    private void UpdateButtonHover(Point screenPoint) {
+        if (topBar == null) return;
+        Point topPoint = topBar.PointToClient(screenPoint);
+        Color defaultBg = topBar.BackColor;
+
+        if (btnClose != null) btnClose.BackColor = btnClose.Bounds.Contains(topPoint) ? Color.FromArgb(196, 43, 28) : defaultBg;
+        if (btnMax != null) btnMax.BackColor = btnMax.Bounds.Contains(topPoint) ? Color.FromArgb(50, 50, 55) : defaultBg;
+        if (btnMin != null) btnMin.BackColor = btnMin.Bounds.Contains(topPoint) ? Color.FromArgb(50, 50, 55) : defaultBg;
+    }
+
+    private void ResetButtonHover() {
+        if (topBar == null) return;
+        Color defaultBg = topBar.BackColor;
+        if (btnClose != null) btnClose.BackColor = defaultBg;
+        if (btnMax != null) btnMax.BackColor = defaultBg;
+        if (btnMin != null) btnMin.BackColor = defaultBg;
     }
 
     [STAThread]
@@ -165,7 +182,7 @@ class MinimalAiApp : Form {
         btnMin.FlatAppearance.BorderSize = 0;
         btnMin.Click += (s, a) => this.WindowState = FormWindowState.Minimized;
 
-        var dragSpacer = new Panel {  // 120px між рядком і кнопками для хапання і перетягування вікна
+        var dragSpacer = new Panel {  // 200px між рядком і кнопками для хапання і перетягування вікна
             Dock = DockStyle.Right,
             Width = 200,
             BackColor = System.Drawing.Color.FromArgb(64, 64, 64)
