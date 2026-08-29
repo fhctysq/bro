@@ -290,7 +290,7 @@ class MinimalAiApp : Form {
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
             ForeColor = System.Drawing.Color.FromArgb(220, 220, 220),
             BorderStyle = BorderStyle.FixedSingle,
-            Font = new System.Drawing.Font("Segoe UI", 10F)
+            Font = new System.Drawing.Font("Segoe UI", 9.5F)
         };
 
         urlInput.KeyDown += (s, args) => {        // перехід за адресою при натисканні Enter
@@ -305,7 +305,7 @@ class MinimalAiApp : Form {
         };
 
         // порядок розташування елементів у верхній панелі
-        topBar.Controls.Add(urlInput);     // рядок вводу займає весь вільний простір
+        topBar.Controls.Add(urlContainer);  // контейнер адреси займає весь вільний простір
         topBar.Controls.Add(dragSpacer);   // ділянка для перетягування
         topBar.Controls.Add(btnMin);      // кнопка згортання
         topBar.Controls.Add(btnMax);      // кнопка розгортання
