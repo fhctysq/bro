@@ -85,7 +85,7 @@ class MinimalAiApp : Form {
         webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(20, 20, 22);
         this.BackColor = System.Drawing.Color.FromArgb(22, 22, 22);   // фарбуємо білий фон форми, що виходить за межі
         
-        this.FormBorderStyle = FormBorderStyle.None;   // прибираємо стандартний громіздкий системний заголовок Windows
+        this.FormBorderStyle = FormBorderStyle.Sizable;   // прибираємо стандартний громіздкий системний заголовок Windows
         var topBar = new Panel {   // панель-заголовок висотою 42px (не враховує масштабування екрану)
             Dock = DockStyle.Top,
             Height = 42,
