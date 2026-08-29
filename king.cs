@@ -17,23 +17,49 @@ class MinimalAiApp : Form {
     private static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
 
     // дозволяємо змінювати розміри вікна мишкою за краї (resizing) при відсутності рамки Windows
-    protected override void WndProc(ref Message m) {
-        base.WndProc(ref m);
-        if (m.Msg == 0x84) { // WM_NCHITTEST
-            var cursor = this.PointToClient(Cursor.Position);
-            const int b = 180; // ширина ділянки drag мишкою (в пікселях)
+    private const int WM_NCCALCSIZE = 0x0083;
+    private const int WM_NCHITTEST = 0x0084;
 
-            if (cursor.Y <= b) {
-                if (cursor.X <= b) m.Result = (IntPtr)13;       // HTTOPLEFT
-                else if (cursor.X >= Width - b) m.Result = (IntPtr)14; // HTTOPRIGHT
-                else m.Result = (IntPtr)12;                     // HTTOP
-            } else if (cursor.Y >= Height - b) {
-                if (cursor.X <= b) m.Result = (IntPtr)16;       // HTBOTTOMLEFT
-                else if (cursor.X >= Width - b) m.Result = (IntPtr)17; // HTBOTTOMRIGHT
-                else m.Result = (IntPtr)15;                     // HTBOTTOM
-            } else if (cursor.X <= b) m.Result = (IntPtr)10;   // HTLEFT
-            else if (cursor.X >= Width - b) m.Result = (IntPtr)11; // HTRIGHT
+    protected override void WndProc(ref Message m) {
+        if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero) {  // прибираємо стандартну білу рамку Windows, зберігаючи тіні вікна та ресайз
+            m.Result = IntPtr.Zero;
+            return;
         }
+
+        if (m.Msg == WM_NCHITTEST) {   // обробка реакції миші на краї та кнопки (вмикає Snap Layouts)
+            base.WndProc(ref m);
+            var screenPoint = new System.Drawing.Point(m.LParam.ToInt32() & 0xffff, m.LParam.ToInt32() >> 16);
+            var clientPoint = this.PointToClient(screenPoint);
+            const int b = 240; // ширина ділянки drag мишкою (в пікселях)
+
+            if (this.WindowState == FormWindowState.Normal) {
+                if (clientPoint.Y <= b) {
+                    if (clientPoint.X <= b) { m.Result = (IntPtr)13; return; } // HTTOPLEFT
+                    if (clientPoint.X >= Width - b) { m.Result = (IntPtr)14; return; } // HTTOPRIGHT
+                    m.Result = (IntPtr)12; return; // HTTOP
+                }
+                if (clientPoint.Y >= Height - b) {
+                    if (clientPoint.X <= b) { m.Result = (IntPtr)16; return; } // HTBOTTOMLEFT
+                    if (clientPoint.X >= Width - b) { m.Result = (IntPtr)17; return; } // HTBOTTOMRIGHT
+                    m.Result = (IntPtr)15; return; // HTBOTTOM
+                }
+                if (clientPoint.X <= b) { m.Result = (IntPtr)10; return; } // HTLEFT
+                if (clientPoint.X >= Width - b) { m.Result = (IntPtr)11; return; } // HTRIGHT
+            }
+
+            if (topBar != null && topBar.Bounds.Contains(clientPoint)) {   // перевіряємо зону заголовка
+                var topPoint = topBar.PointToClient(screenPoint);
+                if (btnClose != null && btnClose.Bounds.Contains(topPoint)) { m.Result = (IntPtr)20; return; } // HTCLOSE
+                if (btnMax != null && btnMax.Bounds.Contains(topPoint)) { m.Result = (IntPtr)9; return; }   // HTMAXBUTTON -> Вмикає Snap Layouts!
+                if (btnMin != null && btnMin.Bounds.Contains(topPoint)) { m.Result = (IntPtr)8; return; }   // HTMINBUTTON
+                if (urlInput != null && urlInput.Bounds.Contains(topPoint)) { return; }
+
+                m.Result = (IntPtr)2; return; // HTCAPTION (перетягування вікна)
+            }
+            return;
+        }
+
+        base.WndProc(ref m);
     }
 
     [STAThread]
@@ -153,8 +179,8 @@ class MinimalAiApp : Form {
                    "--disable-background-networking " +
                    "--disable-component-update";
 
-        // профіль у тимчасовій оперативній папці Temp, а не в системних папках AppData
-        string userDataFolder = Path.Combine(Path.GetTempPath(), "MinimalAiApp_Profile");
+        // профіль (Zoom, авторизація, налаштування) у папці поряд із bro.exe, а не в системних папках AppData
+        string userDataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bro_profile");
         var options = new CoreWebView2EnvironmentOptions(args);
         var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
 
@@ -171,62 +197,10 @@ class MinimalAiApp : Form {
             reqArgs.Response = core.Environment.CreateWebResourceResponse(null, 404, "Blocked", "");
         };
 
-        // синхронізація адреси у рядку при кліках по посиланнях
-        core.SourceChanged += (s, args) => {
+        core.SourceChanged += (s, args) => {   // синхронізація адреси у рядку при кліках по посиланнях
             urlInput.Text = core.Source;
         };
 
-        // кастомний CSS
-        // string myCustomCss = @"
-        //     /* перевизначаємо системні CSS-змінні Gemini для широкого екрана */
-        //     :root, body, main {
-        //         --chat-max-width: 98% !important;
-        //         --message-max-width: 98% !important;
-        //     }
-        
-        //     /* ширина контейнерів майже на всю ширину вікна */
-        //     .conversation-container, 
-        //     main .main-content, 
-        //     message-content, 
-        //     .response-container-content,
-        //     p-element{
-        //         max-width: 95% !important;
-        //         width: 95% !important;
-        //     }
-
-        //     /* робимо блоки коду гнучкими + дозволяємо змінювати розмір вручну мишкою */
-        //     code-block, pre, .code-block-decoration {
-        //         display: block !important;
-        //         width: 95% !important;
-        //         max-width: 95% !important;
-        //     }
-        //     /* горизонтальна прокрутка та повну довжину для довгих рядків коду */
-        //     code-block pre, code-block code {
-        //         white-space: pre !important;
-        //         word-break: normal !important;
-        //         overflow-x: auto !important;
-        //     }
-        // ";
-        //     //     overflow: auto !important;
-        //     //     resize: horizontal !important; /* можна потягнути за куток коду і розширити */
-        //     //     min-width: 500px !important;
-        //     //     max-width: 100% !important;
-        //     //     box-sizing: border-box !important;
-        //     // }
-
-        // // JS-скрипт, який буде вбудовуватися у сторінку в момент створення DOM-дерева
-        // string injectScript = $@"
-        //     document.addEventListener('DOMContentLoaded', () => {{
-        //         let style = document.createElement('style');
-        //         style.innerHTML = `{myCustomCss}`;
-        //         document.head.appendChild(style);
-        //     }});
-        // ";
-
-        // автоматично ін'єктуємо CSS при кожному переході чи оновленні сторінки
-        // await core.AddScriptToExecuteOnDocumentCreatedAsync(injectScript);
-
-        // відкриваємо Gemini
-        core.Navigate("https://gemini.google.com");
+        core.Navigate("https://gemini.google.com");  // відкриваємо Gemini по-дефолту
     }
 }
