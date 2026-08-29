@@ -34,8 +34,25 @@ class MinimalAiApp : Form {
     private NonClientButton? btnMax;  // кнопка розгортання / відновлення вікна
     private NonClientButton? btnClose;  // кнопка закриття застосунку
 
-    private const int BORDER_WIDTH = 4; // ширина ділянки захоплення для зміни розміру вікна мишкою
+    private const int BORDER_WIDTH = 2; // ширина ділянки захоплення для зміни розміру вікна мишкою
     private Rectangle normalBounds; // збережені розміри та координати вікна до його розгортання
+
+        [StructLayout(LayoutKind.Sequential)]
+    private struct POINT {
+        public int x;
+        public int y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    private const int WM_GETMINMAXINFO = 0x0024; // запит обмежень максимального розміру та позиції вікна
 
     // Win32 API для переміщення вікна мишкою
     [DllImport("user32.dll")]
@@ -52,6 +69,21 @@ class MinimalAiApp : Form {
     private const int WM_NCMOUSELEAVE = 0x02A2;  // вихід курсора за межі неклієнтської ділянки
 
     protected override void WndProc(ref Message m) {
+        if (m.Msg == WM_GETMINMAXINFO) { // обмежуємо розмір розгорнутого вікна межами робочої зони дисплея
+            var mmi = Marshal.PtrToStructure<MINMAXINFO>(m.LParam);
+            var screen = Screen.FromHandle(this.Handle);
+            var workArea = screen.WorkingArea;
+            var bounds = screen.Bounds;
+
+            mmi.ptMaxPosition.x = workArea.Left - bounds.Left;
+            mmi.ptMaxPosition.y = workArea.Top - bounds.Top;
+            mmi.ptMaxSize.x = workArea.Width;
+            mmi.ptMaxSize.y = workArea.Height;
+
+            Marshal.StructureToPtr(mmi, m.LParam, true);
+            return;
+        }
+        
         if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero) {  // прибираємо стандартну білу рамку Windows, розширюючи робочу ділянку
             m.Result = IntPtr.Zero;
             return;
@@ -243,7 +275,7 @@ class MinimalAiApp : Form {
         var dragSpacer = new NonClientPanel {  // проміжок між рядком адреси та кнопками для зручного перетягування
             Dock = DockStyle.Right,
             Width = 200,
-            BackColor = System.Drawing.Color.FromArgb(64, 64, 64)
+            BackColor = System.Drawing.Color.FromArgb(60, 60, 60)
         };
         dragSpacer.MouseDown += DragWindow;
 
@@ -252,7 +284,7 @@ class MinimalAiApp : Form {
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
             ForeColor = System.Drawing.Color.FromArgb(220, 220, 220),
             BorderStyle = BorderStyle.FixedSingle,
-            Font = new System.Drawing.Font("Segoe UI", 9.5F)
+            Font = new System.Drawing.Font("Segoe UI", 10F)
         };
 
         urlInput.KeyDown += (s, args) => {        // перехід за адресою при натисканні Enter
