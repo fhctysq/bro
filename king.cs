@@ -82,14 +82,6 @@ class MinimalAiApp : Form {
         var btnMax = CreateSysButton("🗗", (s, a) => this.WindowState = (this.WindowState == FormWindowState.Maximized) ? FormWindowState.Normal : FormWindowState.Maximized, System.Drawing.Color.FromArgb(50, 50, 55));
         var btnMin = CreateSysButton("—", (s, a) => this.WindowState = FormWindowState.Minimized, System.Drawing.Color.FromArgb(50, 50, 55));
 
-        var btnMin = new Button {    // кнопка згорнути на панель завдань
-            Text = "—",
-            Dock = DockStyle.Right,
-            Width = 26,
-            FlatStyle = FlatStyle.Flat,
-            ForeColor = System.Drawing.Color.Gray,
-            Font = new System.Drawing.Font("Segoe UI", 8F)
-        };
         btnMin.FlatAppearance.BorderSize = 0;
         btnMin.Click += (s, a) => this.WindowState = FormWindowState.Minimized;
 
