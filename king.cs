@@ -42,9 +42,9 @@ class MinimalAiApp : Form {
         webView = new WebView2 { Dock = DockStyle.Fill };  // ініціюємо WebView2 та розтягуємо його на все вікно без рамок
 
         this.FormBorderStyle = FormBorderStyle.None;   // прибираємо стандартний громіздкий системний заголовок Windows
-        var topBar = new Panel {   // панель-заголовок висотою 26px
+        var topBar = new Panel {   // панель-заголовок висотою 42px (не враховує масштабування екрану)
             Dock = DockStyle.Top,
-            Height = 26,
+            Height = 42,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
             Padding = new Padding(4, 2, 4, 2)
         };
