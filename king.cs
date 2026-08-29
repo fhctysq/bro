@@ -100,7 +100,7 @@ class MinimalAiApp : Form {
                 if (btnClose != null && btnClose.Bounds.Contains(topPoint)) { m.Result = (IntPtr)20; return; } // HTCLOSE: кнопка закриття
                 if (btnMax != null && btnMax.Bounds.Contains(topPoint))     { m.Result = (IntPtr)9;  return; } // HTMAXBUTTON: кнопка розгортання та Snap Layouts
                 if (btnMin != null && btnMin.Bounds.Contains(topPoint))     { m.Result = (IntPtr)8;  return; } // HTMINBUTTON: кнопка згортання
-                if (urlInput != null && urlInput.Bounds.Contains(topPoint)) { return; } // введення тексту в адресному рядку
+                if (urlInput != null && urlInput.RectangleToScreen(urlInput.ClientRectangle).Contains(screenPoint)) { return; } // введення тексту в адресному рядку
             }
          
             if (this.WindowState == FormWindowState.Normal) {  // визначення меж для зміни розміру вікна (лише у звичайному стані)
@@ -279,6 +279,12 @@ class MinimalAiApp : Form {
         };
         dragSpacer.MouseDown += DragWindow;
 
+        var urlContainer = new NonClientPanel {  // створюємо контейнер для адресного рядка з відступом зверху
+            Dock = DockStyle.Fill,
+            BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
+            Padding = new Padding(0, 2, 0, 0)     // відступ зверху (ліворуч, зверху, праворуч, знизу)
+        };
+
         urlInput = new TextBox {   // вбудований у заголовок адресний рядок
             Dock = DockStyle.Fill,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
@@ -286,8 +292,9 @@ class MinimalAiApp : Form {
             BorderStyle = BorderStyle.FixedSingle,
             Font = new System.Drawing.Font("Segoe UI", 10.5F)
         };
+        urlContainer.Controls.Add(urlInput);  // кладемо urlInput всередину контейнера:
 
-        urlInput.KeyDown += (s, args) => {        // перехід за адресою при натисканні Enter
+        urlInput.KeyDown += (s, args) => {    // перехід за адресою при натисканні Enter
             if (args.KeyCode == Keys.Enter) {
                 args.SuppressKeyPress = true; // вимикаємо системний звуковий сигнал клавіші Enter
                 string target = urlInput.Text.Trim();
@@ -299,7 +306,7 @@ class MinimalAiApp : Form {
         };
 
         // порядок розташування елементів у верхній панелі
-        topBar.Controls.Add(urlInput);     // рядок вводу займає весь вільний простір
+        topBar.Controls.Add(urlContainer);  // контейнер займає весь вільний простір
         topBar.Controls.Add(dragSpacer);   // ділянка для перетягування
         topBar.Controls.Add(btnMin);      // кнопка згортання
         topBar.Controls.Add(btnMax);      // кнопка розгортання
