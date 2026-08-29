@@ -6,13 +6,34 @@ using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
+// спеціальні класи елементів заголовка, що пропускають події миші до форми (HTTRANSPARENT)
+class NonClientPanel : Panel {
+    protected override void WndProc(ref Message m) {
+        if (m.Msg == 0x0084) { // WM_NCHITTEST
+            m.Result = (IntPtr)(-1); // HTTRANSPARENT -> передаємо перевірку батьківській формі
+            return;
+        }
+        base.WndProc(ref m);
+    }
+}
+
+class NonClientButton : Button {
+    protected override void WndProc(ref Message m) {
+        if (m.Msg == 0x0084) { // WM_NCHITTEST
+            m.Result = (IntPtr)(-1); // HTTRANSPARENT -> передаємо перевірку батьківській формі
+            return;
+        }
+        base.WndProc(ref m);
+    }
+}
+
 class MinimalAiApp : Form {
     private WebView2 webView;  // основний контейнер рендерингу Chromium
     private TextBox urlInput;  // для введення адрес
-    private Panel? topBar;
-    private Button? btnMin;
-    private Button? btnMax;
-    private Button? btnClose; // робимо кнопки полями класу
+    private NonClientPanel? topBar;
+    private NonClientButton? btnMin;
+    private NonClientButton? btnMax;
+    private NonClientButton? btnClose; // робимо кнопки полями класу
 
     // Win32 API для перетягування вікна за верхній рядок
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -23,6 +44,8 @@ class MinimalAiApp : Form {
     // дозволяємо змінювати розміри вікна мишкою за краї (resizing) при відсутності рамки Windows
     private const int WM_NCCALCSIZE = 0x0083;
     private const int WM_NCHITTEST = 0x0084;
+    private const int WM_NCMOUSEMOVE  = 0x00A0;
+    private const int WM_NCMOUSELEAVE = 0x02A2;
 
     protected override void WndProc(ref Message m) {
         if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero) {  // прибираємо стандартну білу рамку Windows, зберігаючи тіні вікна та ресайз
