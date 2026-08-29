@@ -6,6 +6,11 @@ on:
       - main  # назва головної гілки
     paths:
       - 'king.cs'
+
+# додаємо глобальну змінну середовища для примусового використання Node 24
+env:
+  FORCE_JAVASCRIPT_ACTIONS_NODE_TYPE: node24
+
 jobs:
   build:
     runs-on: windows-latest
