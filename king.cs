@@ -40,13 +40,15 @@ class MinimalAiApp : Form {
         this.Height = 1280;
 
         webView = new WebView2 { Dock = DockStyle.Fill };  // ініціюємо WebView2 та розтягуємо його на все вікно без рамок
-
+     
+        this.BackColor = System.Drawing.Color.FromArgb(22, 22, 22);   // фарбуємо білий фон форми, що виходить за межі
+        
         this.FormBorderStyle = FormBorderStyle.None;   // прибираємо стандартний громіздкий системний заголовок Windows
         var topBar = new Panel {   // панель-заголовок висотою 42px (не враховує масштабування екрану)
             Dock = DockStyle.Top,
             Height = 42,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
-            Padding = new Padding(4, 2, 4, 2)
+            Padding = new Padding(8, 2, 4, 2)
         };
 
         void DragWindow(object? s, MouseEventArgs args) {   // функція перетягування вікна
@@ -57,27 +59,28 @@ class MinimalAiApp : Form {
         }
         topBar.MouseDown += DragWindow;
 
-        var btnClose = new Button {  // кнопка Закрити (X)
-            Text = "✕",
-            Dock = DockStyle.Right,
-            Width = 26,
-            FlatStyle = FlatStyle.Flat,
-            ForeColor = System.Drawing.Color.Gray,
-            Font = new System.Drawing.Font("Segoe UI", 8F)
-        };
-        btnClose.FlatAppearance.BorderSize = 0;
-        btnClose.Click += (s, a) => this.Close();
+        // фабрика сучасних кнопок у стилі Windows 11
+        Button CreateSysButton(string text, EventHandler onClick, System.Drawing.Color hoverBg) {
+            var btn = new Button {
+                Text = text,
+                Dock = DockStyle.Right,
+                Width = 44,
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = System.Drawing.Color.FromArgb(180, 180, 180),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                Cursor = Cursors.Hand
+            };
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = hoverBg;
+            btn.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(hoverBg.R - 15, hoverBg.G - 15, hoverBg.B - 15);
+            btn.Click += onClick;
+            return btn;
+        }
 
-        var btnMax = new Button {   // кнопка розгорнути/згорнути в вікно
-            Text = "□",
-            Dock = DockStyle.Right,
-            Width = 26,
-            FlatStyle = FlatStyle.Flat,
-            ForeColor = System.Drawing.Color.Gray,
-            Font = new System.Drawing.Font("Segoe UI", 8F)
-        };
-        btnMax.FlatAppearance.BorderSize = 0;
-        btnMax.Click += (s, a) => this.WindowState = (this.WindowState == FormWindowState.Maximized) ? FormWindowState.Normal : FormWindowState.Maximized;
+        // кнопки з плавною підсвіткою при наведенні (червона для хрестика)
+        var btnClose = CreateSysButton("✕", (s, a) => this.Close(), System.Drawing.Color.FromArgb(196, 43, 28));
+        var btnMax = CreateSysButton("🗗", (s, a) => this.WindowState = (this.WindowState == FormWindowState.Maximized) ? FormWindowState.Normal : FormWindowState.Maximized, System.Drawing.Color.FromArgb(50, 50, 55));
+        var btnMin = CreateSysButton("—", (s, a) => this.WindowState = FormWindowState.Minimized, System.Drawing.Color.FromArgb(50, 50, 55));
 
         var btnMin = new Button {    // кнопка згорнути на панель завдань
             Text = "—",
@@ -90,12 +93,19 @@ class MinimalAiApp : Form {
         btnMin.FlatAppearance.BorderSize = 0;
         btnMin.Click += (s, a) => this.WindowState = FormWindowState.Minimized;
 
+        var dragSpacer = new Panel {  // 120px між рядком і кнопками для хапання і перетягування вікна
+            Dock = DockStyle.Right,
+            Width = 80,
+            BackColor = System.Drawing.Color.Transparent
+        };
+        dragSpacer.MouseDown += DragWindow;
+
         urlInput = new TextBox {   // вбудований у Title Bar адресний рядок
             Dock = DockStyle.Fill,
-            BackColor = System.Drawing.Color.FromArgb(30, 30, 34),
-            ForeColor = System.Drawing.Color.FromArgb(200, 200, 200),
+            BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
+            ForeColor = System.Drawing.Color.FromArgb(220, 220, 220),
             BorderStyle = BorderStyle.None,
-            Font = new System.Drawing.Font("Segoe UI", 9F)
+            Font = new System.Drawing.Font("Segoe UI", 9.5F)
         };
 
         urlInput.KeyDown += (s, args) => {        // перехід за адресою при натисканні Enter
@@ -109,8 +119,10 @@ class MinimalAiApp : Form {
             }
         };
 
-        topBar.Controls.Add(urlInput);   // збірка елементів у верхній 26px заголовок
-        topBar.Controls.Add(btnMin);
+        // порядок елементів (Docking зліва направо):
+        topBar.Controls.Add(urlInput);     // рядок вводу заповнює весь залишок
+        topBar.Controls.Add(dragSpacer);   // порожня зона для хвата мишкою
+        topBar.Controls.Add(btnMin);      // кнопка згортання в трей
         topBar.Controls.Add(btnMax);
         topBar.Controls.Add(btnClose);
 
