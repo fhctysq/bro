@@ -77,15 +77,23 @@ class MinimalAiApp : Form {
                 if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)11; return; } // HTRIGHT
             }
 
-            if (topBar != null && topBar.Bounds.Contains(clientPoint)) {   // перевіряємо зону заголовка
+            if (topBar != null && topBar.Bounds.Contains(clientPoint)) {   // перевіряємо ділянку заголовка
                 var topPoint = topBar.PointToClient(screenPoint);
                 if (btnClose != null && btnClose.Bounds.Contains(topPoint)) { m.Result = (IntPtr)20; return; } // HTCLOSE
                 if (btnMax != null && btnMax.Bounds.Contains(topPoint)) { m.Result = (IntPtr)9; return; }   // HTMAXBUTTON -> Вмикає Snap Layouts!
                 if (btnMin != null && btnMin.Bounds.Contains(topPoint)) { m.Result = (IntPtr)8; return; }   // HTMINBUTTON
                 if (urlInput != null && urlInput.Bounds.Contains(topPoint)) { return; }
 
-                m.Result = (IntPtr)2; return; // HTCAPTION (перетягування вікна)
+                m.Result = (IntPtr)2; return; // HTCAPTION (перетягування вікна та подвійний клік)
             }
+
+            m.Result = (IntPtr)1; // HTCLIENT
+            return;
+        }
+
+        if (m.Msg == WM_NCMOUSELEAVE || m.Msg == 0x0200) { // вихід миші за межі кнопок
+            ResetButtonHover();
+            base.WndProc(ref m);
             return;
         }
 
@@ -120,7 +128,7 @@ class MinimalAiApp : Form {
             Dock = DockStyle.Top,
             Height = 42,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
-            Padding = new Padding(8, 2, 4, 2)
+            Padding = new Padding(18, 2, 4, 2)
         };
 
         void DragWindow(object? s, MouseEventArgs args) {   // функція перетягування вікна
@@ -159,8 +167,8 @@ class MinimalAiApp : Form {
 
         var dragSpacer = new Panel {  // 120px між рядком і кнопками для хапання і перетягування вікна
             Dock = DockStyle.Right,
-            Width = 180,
-            BackColor = System.Drawing.Color.Transparent
+            Width = 200,
+            BackColor = System.Drawing.Color.FromArgb(64, 64, 64)
         };
         dragSpacer.MouseDown += DragWindow;
 
@@ -168,7 +176,7 @@ class MinimalAiApp : Form {
             Dock = DockStyle.Fill,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
             ForeColor = System.Drawing.Color.FromArgb(220, 220, 220),
-            BorderStyle = BorderStyle.None,
+            BorderStyle = BorderStyle.FixedSingle,
             Font = new System.Drawing.Font("Segoe UI", 9.5F)
         };
 
@@ -195,6 +203,18 @@ class MinimalAiApp : Form {
 
         // підписка на подію старту вікна (з додаванням знаку '?' для зняття попередження Nullable)
         this.Load += InitWebView;
+    }
+
+    protected override void OnResize(EventArgs e) {
+        base.OnResize(e);
+        if (btnMax != null) {
+            btnMax.Text = (this.WindowState == FormWindowState.Maximized) ? "❐" : "🗗";
+        }
+
+        // при розгортанні на весь екран прибираємо відступи ресайзу
+        this.Padding = (this.WindowState == FormWindowState.Maximized) 
+            ? new Padding(0) 
+            : new Padding(BORDER_WIDTH, 0, BORDER_WIDTH, BORDER_WIDTH);
     }
 
     // попередження CS8622 усунено за допомогою `object?` (дозволяємо null відповідно до сигнатури EventHandler)
