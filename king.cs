@@ -6,8 +6,7 @@ using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-// спеціальні класи елементів заголовка, що передають системні події миші батьківській формі (HTTRANSPARENT)
-class NonClientPanel : Panel {
+class NonClientPanel : Panel { // спецкласи заголовка, що передають системні події миші батьківській формі (HTTRANSPARENT)
     protected override void WndProc(ref Message m) {
         if (m.Msg == 0x0084) { // WM_NCHITTEST: перевірка типу ділянки під курсором
             m.Result = (IntPtr)(-1); // HTTRANSPARENT: робить панель «прозорою» для системних подій миші
@@ -35,7 +34,7 @@ class MinimalAiApp : Form {
     private NonClientButton? btnMax;  // кнопка розгортання / відновлення вікна
     private NonClientButton? btnClose;  // кнопка закриття застосунку
 
-    private const int BORDER_WIDTH = 10; // ширина ділянки захоплення для зміни розміру вікна мишкою
+    private const int BORDER_WIDTH = 4; // ширина ділянки захоплення для зміни розміру вікна мишкою
     private Rectangle normalBounds; // збережені розміри та координати вікна до його розгортання
 
     // Win32 API для переміщення вікна мишкою
@@ -47,6 +46,7 @@ class MinimalAiApp : Form {
     // системні повідомлення Win32 для обробки меж вікна, перетягування та наведення
     private const int WM_NCCALCSIZE   = 0x0083; // розрахунок розміру клієнтської ділянки
     private const int WM_NCHITTEST    = 0x0084; // запит про тип ділянки під вказівником миші
+    private const int WM_NCMOUSEMOVE  = 0x00A0; // рух курсора по неклієнтській ділянці (кнопках)
     private const int WM_NCMOUSELEAVE = 0x02A2; // вихід курсора за межі неклієнтської ділянки
 
     protected override void WndProc(ref Message m) {
@@ -58,10 +58,10 @@ class MinimalAiApp : Form {
         if (m.Msg == WM_NCHITTEST) {   // обробка реакції на краї, заголовок та кнопки (вмикає меню Snap Layouts)
             int x = unchecked((short)(long)m.LParam);    // розпакування координати X (зі знаком для кількох моніторів)
             int y = unchecked((short)((long)m.LParam >> 16)); // розпакування координати Y (зі знаком для кількох моніторів)
-            var screenPoint = new Point(x, y); // точка на екрані
-            var clientPoint = this.PointToClient(screenPoint); // переведення екранних координат у координати форми
+            var screenPoint = new Point(x, y); // крапка на екрані
+            var clientPoint = this.PointToClient(screenPoint); // екранні координати - до координат форми
 
-            if (this.WindowState == FormWindowState.Normal) {   // визначення меж для зміни розміру (лише у звичайному стані)
+            if (this.WindowState == FormWindowState.Normal) {   // визначення меж для зміни розміру (лише у нерозгорнутому стані)
                 if (clientPoint.Y <= BORDER_WIDTH) { // верхній край та верхні кути
                     if (clientPoint.X <= BORDER_WIDTH) { m.Result = (IntPtr)13; return; } // HTTOPLEFT: верхній лівий кут
                     if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)14; return; } // HTTOPRIGHT: верхній правий кут
@@ -76,8 +76,8 @@ class MinimalAiApp : Form {
                 if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)11; return; } // HTRIGHT: права межа
             }
 
-            if (topBar != null && topBar.Bounds.Contains(clientPoint)) {   // перевірка елементів у верхній панелі
-                var topPoint = topBar.PointToClient(screenPoint); // координати всередині верхньої панелі
+            if (topBar != null && topBar.Bounds.Contains(clientPoint)) {  // перевірка елементів у верхній панелі
+                var topPoint = topBar.PointToClient(screenPoint);   // координати всередині верхньої панелі
                 if (btnClose != null && btnClose.Bounds.Contains(topPoint)) { m.Result = (IntPtr)20; return; } // HTCLOSE: системна зона кнопки закриття
                 if (btnMax != null && btnMax.Bounds.Contains(topPoint))     { m.Result = (IntPtr)9;  return; } // HTMAXBUTTON: вмикає меню Snap Layouts у Windows 11
                 if (btnMin != null && btnMin.Bounds.Contains(topPoint))     { m.Result = (IntPtr)8;  return; } // HTMINBUTTON: системна зона кнопки згортання
@@ -87,6 +87,14 @@ class MinimalAiApp : Form {
             }
 
             m.Result = (IntPtr)1; // HTCLIENT: робоча ділянка вмісту форми (WebView2)
+            return;
+        }
+
+        if (m.Msg == WM_NCMOUSEMOVE) { // підсвітка кнопок при наведенні курсора
+            int x = unchecked((short)(long)m.LParam);
+            int y = unchecked((short)((long)m.LParam >> 16));
+            UpdateButtonHover(new Point(x, y));
+            base.WndProc(ref m);
             return;
         }
 
@@ -107,6 +115,16 @@ class MinimalAiApp : Form {
         if (btnMin != null)   btnMin.BackColor   = defaultBg;
     }
 
+    private void UpdateButtonHover(Point screenPoint) { // зміна фонового кольору кнопки при наведенні на неї
+        if (topBar == null) return;
+        Point topPoint = topBar.PointToClient(screenPoint);
+        Color defaultBg = topBar.BackColor;
+
+        if (btnClose != null) btnClose.BackColor = btnClose.Bounds.Contains(topPoint) ? Color.FromArgb(196, 43, 28) : defaultBg;
+        if (btnMax != null)   btnMax.BackColor   = btnMax.Bounds.Contains(topPoint)   ? Color.FromArgb(50, 50, 55)   : defaultBg;
+        if (btnMin != null)   btnMin.BackColor   = btnMin.Bounds.Contains(topPoint)   ? Color.FromArgb(50, 50, 55)   : defaultBg;
+    }
+
     private void ToggleMaximize() { // перемикання розгортання вікна зі збереженням попередніх розмірів
         if (this.WindowState == FormWindowState.Maximized) {
             this.WindowState = FormWindowState.Normal; // повертаємо у звичайний стан
@@ -119,17 +137,17 @@ class MinimalAiApp : Form {
         }
     }
 
-    protected override void OnResizeEnd(EventArgs e) { // збереження розмірів після завершення ручного розтягування мишкою
+    protected override void OnResizeEnd(EventArgs e) { // збереження розмірів після завершення розтягування мишкою
         base.OnResizeEnd(e);
         if (this.WindowState == FormWindowState.Normal) {
-            normalBounds = this.Bounds; // оновлюємо збережені межі
+            normalBounds = this.Bounds;  // оновлюємо збережені межі
         }
     }
 
     protected override void OnLocationChanged(EventArgs e) { // збереження нової позиції після переміщення вікна
         base.OnLocationChanged(e);
         if (this.WindowState == FormWindowState.Normal) {
-            normalBounds = this.Bounds; // оновлюємо збережені координати
+            normalBounds = this.Bounds;  // оновлюємо збережені координати
         }
     }
 
@@ -143,11 +161,11 @@ class MinimalAiApp : Form {
         Application.Run(new MinimalAiApp());
     }
 
-    public MinimalAiApp() {
-        // налаштування параметрів головного вікна
+    public MinimalAiApp() {   // налаштування параметрів головного вікна
+      
         this.Text = "bro";
-        this.Width = 1280;
-        this.Height = 1280;
+        this.Width = 1080;
+        this.Height = 1080;
         this.normalBounds = this.Bounds; // фіксуємо початковий розмір і розташування форми
 
         webView = new WebView2 { Dock = DockStyle.Fill };  // ініціюємо WebView2 та розтягуємо на всю робочу площу
@@ -178,15 +196,15 @@ class MinimalAiApp : Form {
             var btn = new NonClientButton {
                 Text = text,
                 Dock = DockStyle.Right,
-                Width = 44,
+                Width = 56,
                 FlatStyle = FlatStyle.Flat,
                 ForeColor = System.Drawing.Color.FromArgb(180, 180, 180),
-                Font = new System.Drawing.Font("Segoe UI", 9F),
+                Font = new System.Drawing.Font("Segoe UI", 9.5F),
                 Cursor = Cursors.Hand
             };
             btn.FlatAppearance.BorderSize = 0; // прибираємо рамку кнопки
             btn.FlatAppearance.MouseOverBackColor = hoverBg; // колір підсвітки при наведенні
-            btn.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(hoverBg.R - 15, hoverBg.G - 15, hoverBg.B - 15); // колір при натисканні
+            btn.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(hoverBg.R - 12, hoverBg.G - 12, hoverBg.B - 12); // колір при натисканні
             btn.Click += onClick;
             return btn;
         }
