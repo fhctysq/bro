@@ -15,11 +15,22 @@ class MinimalAiApp : Form {
     private static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
 
     // дозволяємо змінювати розміри вікна мишкою за краї (resizing) при відсутності рамки Windows
-    protected override CreateParams CreateParams {
-        get {
-            var cp = base.CreateParams;
-            cp.Style |= 0x40000; // WS_THICKFRAME (зони зміни розміру вікна)
-            return cp;
+    protected override void WndProc(ref Message m) {
+        base.WndProc(ref m);
+        if (m.Msg == 0x84) { // WM_NCHITTEST
+            var cursor = this.PointToClient(Cursor.Position);
+            const int b = 180; // ширина ділянки drag мишкою (в пікселях)
+
+            if (cursor.Y <= b) {
+                if (cursor.X <= b) m.Result = (IntPtr)13;       // HTTOPLEFT
+                else if (cursor.X >= Width - b) m.Result = (IntPtr)14; // HTTOPRIGHT
+                else m.Result = (IntPtr)12;                     // HTTOP
+            } else if (cursor.Y >= Height - b) {
+                if (cursor.X <= b) m.Result = (IntPtr)16;       // HTBOTTOMLEFT
+                else if (cursor.X >= Width - b) m.Result = (IntPtr)17; // HTBOTTOMRIGHT
+                else m.Result = (IntPtr)15;                     // HTBOTTOM
+            } else if (cursor.X <= b) m.Result = (IntPtr)10;   // HTLEFT
+            else if (cursor.X >= Width - b) m.Result = (IntPtr)11; // HTRIGHT
         }
     }
 
@@ -83,7 +94,7 @@ class MinimalAiApp : Form {
         // кнопки з плавною підсвіткою при наведенні (червона для хрестика)
         var btnClose = CreateSysButton("✕", (s, a) => this.Close(), System.Drawing.Color.FromArgb(196, 43, 28));
         var btnMax = CreateSysButton("🗗", (s, a) => this.WindowState = (this.WindowState == FormWindowState.Maximized) ? FormWindowState.Normal : FormWindowState.Maximized, System.Drawing.Color.FromArgb(50, 50, 55));
-        var btnMin = CreateSysButton("—", (s, a) => this.WindowState = FormWindowState.Minimized, System.Drawing.Color.FromArgb(50, 50, 55));
+        var btnMin = CreateSysButton("_", (s, a) => this.WindowState = FormWindowState.Minimized, System.Drawing.Color.FromArgb(50, 50, 55));
 
         btnMin.FlatAppearance.BorderSize = 0;
         btnMin.Click += (s, a) => this.WindowState = FormWindowState.Minimized;
@@ -165,12 +176,18 @@ class MinimalAiApp : Form {
 
         // кастомний CSS
         string myCustomCss = @"
+            /* перевизначаємо системні CSS-змінні Gemini для широкого екрана */
+            :root, body, main {
+                --chat-max-width: 98% !important;
+                --message-max-width: 98% !important;
+            }
+        
             /* ширина контейнерів майже на всю ширину вікна */
-            main, 
-            .main-content, 
             .conversation-container, 
+            main .main-content, 
             message-content, 
-            .response-container-content {
+            .response-container-content,
+            p-element{
                 max-width: 95% !important;
                 width: 95% !important;
             }
@@ -178,13 +195,22 @@ class MinimalAiApp : Form {
             /* робимо блоки коду гнучкими + дозволяємо змінювати розмір вручну мишкою */
             code-block, pre, .code-block-decoration {
                 display: block !important;
-                overflow: auto !important;
-                resize: horizontal !important; /* можна потягнути за куток коду і розширити */
-                min-width: 500px !important;
-                max-width: 100% !important;
-                box-sizing: border-box !important;
+                width: 95% !important;
+                max-width: 95% !important;
+            }
+            /* горизонтальна прокрутка та повну довжину для довгих рядків коду */
+            code-block pre, code-block code {
+                white-space: pre !important;
+                word-break: normal !important;
+                overflow-x: auto !important;
             }
         ";
+            //     overflow: auto !important;
+            //     resize: horizontal !important; /* можна потягнути за куток коду і розширити */
+            //     min-width: 500px !important;
+            //     max-width: 100% !important;
+            //     box-sizing: border-box !important;
+            // }
 
         // JS-скрипт, який буде вбудовуватися у сторінку в момент створення DOM-дерева
         string injectScript = $@"
