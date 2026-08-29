@@ -238,7 +238,7 @@ class MinimalAiApp : Form {
             Dock = DockStyle.Top,
             Height = 42,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
-            Padding = new Padding(16, 0, 0, 0) // без відступів по вертикалі і справа, щоб кнопки були на всю висоту і впритул до краю
+            Padding = new Padding(14, 0, 0, 0) // без відступів по вертикалі і справа, щоб кнопки були на всю висоту і впритул до краю
         };
 
         void DragWindow(object? s, MouseEventArgs args) {   // допоміжна функція перетягування вікна за заголовок
@@ -282,7 +282,7 @@ class MinimalAiApp : Form {
         var urlContainer = new NonClientPanel {  // створюємо контейнер для адресного рядка з відступом зверху
             Dock = DockStyle.Fill,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
-            Padding = new Padding(0, 2, 0, 0)     // відступ зверху (ліворуч, зверху, праворуч, знизу)
+            Padding = new Padding(0, 1, 0, 0)     // відступ зверху (ліворуч, зверху, праворуч, знизу)
         };
 
         urlInput = new TextBox {   // вбудований у заголовок адресний рядок
