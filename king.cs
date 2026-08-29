@@ -44,10 +44,12 @@ class MinimalAiApp : Form {
     private static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
 
     // системні повідомлення Win32 для обробки меж вікна, перетягування та наведення
-    private const int WM_NCCALCSIZE   = 0x0083; // розрахунок розміру клієнтської ділянки
-    private const int WM_NCHITTEST    = 0x0084; // запит про тип ділянки під вказівником миші
-    private const int WM_NCMOUSEMOVE  = 0x00A0; // рух курсора по неклієнтській ділянці (кнопках)
-    private const int WM_NCMOUSELEAVE = 0x02A2; // вихід курсора за межі неклієнтської ділянки
+    private const int WM_NCCALCSIZE   = 0x0083;  // розрахунок розміру клієнтської ділянки
+    private const int WM_NCHITTEST    = 0x0084;  // запит про тип ділянки під вказівником миші
+    private const int WM_NCMOUSEMOVE    = 0x00A0; // рух курсора по неклієнтській ділянці (кнопках)
+    private const int WM_NCLBUTTONDOWN  = 0x00A1; // натискання лівої кнопки миші на неклієнтській ділянці
+    private const int WM_NCLBUTTONUP    = 0x00A2; // відпускання лівої кнопки миші на неклієнтській ділянці
+    private const int WM_NCMOUSELEAVE = 0x02A2;  // вихід курсора за межі неклієнтської ділянки
 
     protected override void WndProc(ref Message m) {
         if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero) {  // прибираємо стандартну білу рамку Windows, розширюючи робочу ділянку
@@ -59,15 +61,23 @@ class MinimalAiApp : Form {
             int x = unchecked((short)(long)m.LParam);    // розпакування координати X (зі знаком для кількох моніторів)
             int y = unchecked((short)((long)m.LParam >> 16)); // розпакування координати Y (зі знаком для кількох моніторів)
             var screenPoint = new Point(x, y); // крапка на екрані
-            var clientPoint = this.PointToClient(screenPoint); // екранні координати - до координат форми
-
-            if (this.WindowState == FormWindowState.Normal) {   // визначення меж для зміни розміру (лише у нерозгорнутому стані)
-                if (clientPoint.Y <= BORDER_WIDTH) { // верхній край та верхні кути
+            var clientPoint = this.PointToClient(screenPoint); // переведення екранних координат у координати форми
+         
+            if (topBar != null && topBar.Bounds.Contains(clientPoint)) { // спочатку перевіряємо системні кнопки (вони мають пріоритет над верхньою межею ресайзу)
+                var topPoint = topBar.PointToClient(screenPoint);
+                if (btnClose != null && btnClose.Bounds.Contains(topPoint)) { m.Result = (IntPtr)20; return; } // HTCLOSE: кнопка закриття
+                if (btnMax != null && btnMax.Bounds.Contains(topPoint))     { m.Result = (IntPtr)9;  return; } // HTMAXBUTTON: кнопка розгортання та Snap Layouts
+                if (btnMin != null && btnMin.Bounds.Contains(topPoint))     { m.Result = (IntPtr)8;  return; } // HTMINBUTTON: кнопка згортання
+                if (urlInput != null && urlInput.Bounds.Contains(topPoint)) { return; } // введення тексту в адресному рядку
+            }
+         
+            if (this.WindowState == FormWindowState.Normal) {  // визначення меж для зміни розміру вікна (лише у звичайному стані)
+                if (clientPoint.Y <= BORDER_WIDTH) {
                     if (clientPoint.X <= BORDER_WIDTH) { m.Result = (IntPtr)13; return; } // HTTOPLEFT: верхній лівий кут
                     if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)14; return; } // HTTOPRIGHT: верхній правий кут
                     m.Result = (IntPtr)12; return; // HTTOP: верхня межа
                 }
-                if (clientPoint.Y >= this.ClientSize.Height - BORDER_WIDTH) { // нижній край та нижні кути
+                if (clientPoint.Y >= this.ClientSize.Height - BORDER_WIDTH) {
                     if (clientPoint.X <= BORDER_WIDTH) { m.Result = (IntPtr)16; return; } // HTBOTTOMLEFT: нижній лівий кут
                     if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)17; return; } // HTBOTTOMRIGHT: нижній правий кут
                     m.Result = (IntPtr)15; return; // HTBOTTOM: нижня межа
@@ -75,19 +85,35 @@ class MinimalAiApp : Form {
                 if (clientPoint.X <= BORDER_WIDTH) { m.Result = (IntPtr)10; return; } // HTLEFT: ліва межа
                 if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)11; return; } // HTRIGHT: права межа
             }
-
-            if (topBar != null && topBar.Bounds.Contains(clientPoint)) {  // перевірка елементів у верхній панелі
-                var topPoint = topBar.PointToClient(screenPoint);   // координати всередині верхньої панелі
-                if (btnClose != null && btnClose.Bounds.Contains(topPoint)) { m.Result = (IntPtr)20; return; } // HTCLOSE: системна зона кнопки закриття
-                if (btnMax != null && btnMax.Bounds.Contains(topPoint))     { m.Result = (IntPtr)9;  return; } // HTMAXBUTTON: вмикає меню Snap Layouts у Windows 11
-                if (btnMin != null && btnMin.Bounds.Contains(topPoint))     { m.Result = (IntPtr)8;  return; } // HTMINBUTTON: системна зона кнопки згортання
-                if (urlInput != null && urlInput.Bounds.Contains(topPoint)) { return; } // залишаємо обробку для поля вводу адреси
-
-                m.Result = (IntPtr)2; return; // HTCAPTION: заголовок для нативного перетягування та подвійного кліку
+          
+            if (topBar != null && topBar.Bounds.Contains(clientPoint)) {  // решта верхньої панелі - заголовок для перетягування
+                m.Result = (IntPtr)2; return; // HTCAPTION: заголовок для нативного перетягування
             }
-
-            m.Result = (IntPtr)1; // HTCLIENT: робоча ділянка вмісту форми (WebView2)
+            m.Result = (IntPtr)1;  // HTCLIENT: робоча ділянка вмісту форми (WebView2)
             return;
+        }
+      
+        if (m.Msg == WM_NCLBUTTONDOWN) {  // блокуємо стандартне малювання системних білих кнопок Windows при натисканні
+            int hit = m.WParam.ToInt32();
+            if (hit == 9 || hit == 8 || hit == 20) { // HTMAXBUTTON, HTMINBUTTON, HTCLOSE
+                return; // не передаємо в base.WndProc, щоб уникнути появи білого квадрата
+            }
+        }
+     
+        if (m.Msg == WM_NCLBUTTONUP) {   // обробляємо клік на кнопках заголовка самостійно
+            int hit = m.WParam.ToInt32();
+            if (hit == 9) { // HTMAXBUTTON
+                ToggleMaximize();
+                return;
+            }
+            if (hit == 8) { // HTMINBUTTON
+                this.WindowState = FormWindowState.Minimized;
+                return;
+            }
+            if (hit == 20) { // HTCLOSE
+                this.Close();
+                return;
+            }
         }
 
         if (m.Msg == WM_NCMOUSEMOVE) { // підсвітка кнопок при наведенні курсора
@@ -180,7 +206,7 @@ class MinimalAiApp : Form {
             Dock = DockStyle.Top,
             Height = 42,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
-            Padding = new Padding(18, 2, 4, 2)
+            Padding = new Padding(18, 0, 0, 0) // без відступів по вертикалі і справа, щоб кнопки були на всю висоту і впритул до краю
         };
 
         void DragWindow(object? s, MouseEventArgs args) {   // допоміжна функція перетягування вікна за заголовок
