@@ -30,7 +30,6 @@ class MinimalAiApp : Form {
     private WebView2 webView;  // основний контейнер рендерингу Chromium
     private TextBox urlInput;  // поле для введення веб-адрес
     private NonClientPanel? topBar;  // верхня панель-заголовок
-    private Panel? urlContainer;     // контейнер для рядка адреси
     private NonClientButton? btnMin;  // кнопка згортання вікна
     private NonClientButton? btnMax;  // кнопка розгортання / відновлення вікна
     private NonClientButton? btnClose;  // кнопка закриття застосунку
@@ -51,21 +50,6 @@ class MinimalAiApp : Form {
         public POINT ptMaxPosition;
         public POINT ptMinTrackSize;
         public POINT ptMaxTrackSize;
-    }
-
-        [StructLayout(LayoutKind.Sequential)]
-    private struct RECT {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NCCALCSIZE_PARAMS {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        public RECT[] rgrc;
-        public IntPtr lppos;
     }
 
     private const int WM_GETMINMAXINFO = 0x0024; // запит обмежень максимального розміру та позиції вікна
@@ -100,18 +84,7 @@ class MinimalAiApp : Form {
             return;
         }
         
-        if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero) {  // прибираємо стандартну білу рамку та коригуємо межі розгорнутого вікна
-            if (this.WindowState == FormWindowState.Maximized) {
-                var screen = Screen.FromHandle(this.Handle);
-                var workArea = screen.WorkingArea;
-                var ncsp = Marshal.PtrToStructure<NCCALCSIZE_PARAMS>(m.LParam);
-                // встановлюємо клієнтську ділянку строго в межі робочої зони монітора (без системного вильоту на 8px за екран)
-                ncsp.rgrc[0].Left = workArea.Left;
-                ncsp.rgrc[0].Top = workArea.Top;
-                ncsp.rgrc[0].Right = workArea.Right;
-                ncsp.rgrc[0].Bottom = workArea.Bottom;
-                Marshal.StructureToPtr(ncsp, m.LParam, false);
-            }
+        if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero) {  // прибираємо стандартну білу рамку Windows, розширюючи робочу ділянку
             m.Result = IntPtr.Zero;
             return;
         }
@@ -122,19 +95,12 @@ class MinimalAiApp : Form {
             var screenPoint = new Point(x, y); // крапка на екрані
             var clientPoint = this.PointToClient(screenPoint); // переведення екранних координат у координати форми
          
-            // перевірка кліку по адресному рядку (HTCLIENT повертає подію миші полю вводу для фокусу та виділення тексту)
-            if (urlInput != null && urlInput.Visible) {
-                Point inputPoint = urlInput.PointToClient(screenPoint);
-                if (urlInput.ClientRectangle.Contains(inputPoint)) {
-                    m.Result = (IntPtr)1; // HTCLIENT: звичайна клієнтська ділянка (дозволяє клікати, друкувати та виділяти)
-                    return;
-                }
-            }
-            if (topBar != null && topBar.Bounds.Contains(clientPoint)) { // системні кнопки (мають пріоритет над верхньою межею ресайзу)
+            if (topBar != null && topBar.Bounds.Contains(clientPoint)) { // спочатку перевіряємо системні кнопки (вони мають пріоритет над верхньою межею ресайзу)
                 var topPoint = topBar.PointToClient(screenPoint);
                 if (btnClose != null && btnClose.Bounds.Contains(topPoint)) { m.Result = (IntPtr)20; return; } // HTCLOSE: кнопка закриття
                 if (btnMax != null && btnMax.Bounds.Contains(topPoint))     { m.Result = (IntPtr)9;  return; } // HTMAXBUTTON: кнопка розгортання та Snap Layouts
                 if (btnMin != null && btnMin.Bounds.Contains(topPoint))     { m.Result = (IntPtr)8;  return; } // HTMINBUTTON: кнопка згортання
+                if (urlInput != null && urlInput.Bounds.Contains(topPoint)) { return; } // введення тексту в адресному рядку
             }
          
             if (this.WindowState == FormWindowState.Normal) {  // визначення меж для зміни розміру вікна (лише у звичайному стані)
@@ -313,18 +279,12 @@ class MinimalAiApp : Form {
         };
         dragSpacer.MouseDown += DragWindow;
 
-        var urlContainer = new NonClientPanel { // контейнер для центрування рядка вводу по висоті 42px
-            Dock = DockStyle.Fill,
-            Padding = new Padding(2, 2, 2, 2), // симетричні відступи зверху, знизу та з боків
-            BackColor = Color.Transparent
-        };
-
         urlInput = new TextBox {   // вбудований у заголовок адресний рядок
             Dock = DockStyle.Fill,
             BackColor = System.Drawing.Color.FromArgb(22, 22, 22),
             ForeColor = System.Drawing.Color.FromArgb(220, 220, 220),
             BorderStyle = BorderStyle.FixedSingle,
-            Font = new System.Drawing.Font("Segoe UI", 9.5F)
+            Font = new System.Drawing.Font("Segoe UI", 10.5F)
         };
 
         urlInput.KeyDown += (s, args) => {        // перехід за адресою при натисканні Enter
@@ -339,7 +299,7 @@ class MinimalAiApp : Form {
         };
 
         // порядок розташування елементів у верхній панелі
-        topBar.Controls.Add(urlContainer);  // контейнер адреси займає весь вільний простір
+        topBar.Controls.Add(urlInput);     // рядок вводу займає весь вільний простір
         topBar.Controls.Add(dragSpacer);   // ділянка для перетягування
         topBar.Controls.Add(btnMin);      // кнопка згортання
         topBar.Controls.Add(btnMax);      // кнопка розгортання
