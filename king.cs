@@ -35,6 +35,8 @@ class MinimalAiApp : Form {
     private NonClientButton? btnMax;
     private NonClientButton? btnClose; // робимо кнопки полями класу
 
+    private const int BORDER_WIDTH = 10; // ширина ділянки захоплення ресайзу
+
     // Win32 API для перетягування вікна за верхній рядок
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool ReleaseCapture();
@@ -54,28 +56,25 @@ class MinimalAiApp : Form {
         }
 
         if (m.Msg == WM_NCHITTEST) {   // обробка реакції миші на краї та кнопки (вмикає Snap Layouts)
-            base.WndProc(ref m);
-          
-            long lParam = m.LParam.ToInt64();  // розпакування координат миші для 64-біт систем
-            int x = (short)(lParam & 0xFFFF);
-            int y = (short)((lParam >> 16) & 0xFFFF);
-            var screenPoint = new System.Drawing.Point(m.LParam.ToInt32() & 0xffff, m.LParam.ToInt32() >> 16);
+            int x = unchecked((short)(long)m.LParam);    // розпакування екранних координат для багатомоніторних систем
+            int y = unchecked((short)((long)m.LParam >> 16));
+            var screenPoint = new Point(x, y);
             var clientPoint = this.PointToClient(screenPoint);
             const int b = 8; // ширина ділянки захоплення для зміни розміру вікна мишкою (в пікселях)
 
-            if (this.WindowState == FormWindowState.Normal) {
-                if (clientPoint.Y <= b) {
-                    if (clientPoint.X <= b) { m.Result = (IntPtr)13; return; } // HTTOPLEFT
-                    if (clientPoint.X >= Width - b) { m.Result = (IntPtr)14; return; } // HTTOPRIGHT
+            if (this.WindowState == FormWindowState.Normal) {   // зміна розмірів вікна (працює тільки у звичайному стані вікна)
+                if (clientPoint.Y <= BORDER_WIDTH) {
+                    if (clientPoint.X <= BORDER_WIDTH) { m.Result = (IntPtr)13; return; } // HTTOPLEFT
+                    if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)14; return; } // HTTOPRIGHT
                     m.Result = (IntPtr)12; return; // HTTOP
                 }
-                if (clientPoint.Y >= Height - b) {
-                    if (clientPoint.X <= b) { m.Result = (IntPtr)16; return; } // HTBOTTOMLEFT
-                    if (clientPoint.X >= Width - b) { m.Result = (IntPtr)17; return; } // HTBOTTOMRIGHT
+                if (clientPoint.Y >= this.ClientSize.Height - BORDER_WIDTH) {
+                    if (clientPoint.X <= BORDER_WIDTH) { m.Result = (IntPtr)16; return; } // HTBOTTOMLEFT
+                    if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)17; return; } // HTBOTTOMRIGHT
                     m.Result = (IntPtr)15; return; // HTBOTTOM
                 }
-                if (clientPoint.X <= b) { m.Result = (IntPtr)10; return; } // HTLEFT
-                if (clientPoint.X >= Width - b) { m.Result = (IntPtr)11; return; } // HTRIGHT
+                if (clientPoint.X <= BORDER_WIDTH) { m.Result = (IntPtr)10; return; } // HTLEFT
+                if (clientPoint.X >= this.ClientSize.Width - BORDER_WIDTH) { m.Result = (IntPtr)11; return; } // HTRIGHT
             }
 
             if (topBar != null && topBar.Bounds.Contains(clientPoint)) {   // перевіряємо зону заголовка
