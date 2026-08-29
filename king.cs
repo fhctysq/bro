@@ -32,9 +32,13 @@ class MinimalAiApp : Form {
 
         if (m.Msg == WM_NCHITTEST) {   // обробка реакції миші на краї та кнопки (вмикає Snap Layouts)
             base.WndProc(ref m);
+          
+            long lParam = m.LParam.ToInt64();  // розпакування координат миші для 64-біт систем
+            int x = (short)(lParam & 0xFFFF);
+            int y = (short)((lParam >> 16) & 0xFFFF);
             var screenPoint = new System.Drawing.Point(m.LParam.ToInt32() & 0xffff, m.LParam.ToInt32() >> 16);
             var clientPoint = this.PointToClient(screenPoint);
-            const int b = 240; // ширина ділянки drag мишкою (в пікселях)
+            const int b = 8; // ширина ділянки захоплення для зміни розміру вікна мишкою (в пікселях)
 
             if (this.WindowState == FormWindowState.Normal) {
                 if (clientPoint.Y <= b) {
@@ -86,7 +90,7 @@ class MinimalAiApp : Form {
 
         this.Padding = new Padding(0);   // занулюємо системні відступи форми
         // темний колір фону для самого WebView2 (фарбує білу смугу)
-        webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(20, 20, 22);
+        webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(22, 22, 22);
         this.BackColor = System.Drawing.Color.FromArgb(22, 22, 22);   // фарбуємо білий фон форми, що виходить за межі
         
         this.FormBorderStyle = FormBorderStyle.Sizable;   // прибираємо стандартний громіздкий системний заголовок Windows
@@ -133,7 +137,7 @@ class MinimalAiApp : Form {
 
         var dragSpacer = new Panel {  // 120px між рядком і кнопками для хапання і перетягування вікна
             Dock = DockStyle.Right,
-            Width = 80,
+            Width = 180,
             BackColor = System.Drawing.Color.Transparent
         };
         dragSpacer.MouseDown += DragWindow;
