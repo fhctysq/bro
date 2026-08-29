@@ -1,5 +1,7 @@
 using System;
+using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
@@ -7,8 +9,10 @@ using Microsoft.Web.WebView2.WinForms;
 class MinimalAiApp : Form {
     private WebView2 webView;  // основний контейнер рендерингу Chromium
     private TextBox urlInput;  // для введення адрес
-    private Panel topBar;
-    private Button btnMin, btnMax, btnClose; // робимо кнопки полями класу
+    private Panel? topBar;
+    private Button? btnMin;
+    private Button? btnMax;
+    private Button? btnClose; // робимо кнопки полями класу
 
     // Win32 API для перетягування вікна за верхній рядок
     [System.Runtime.InteropServices.DllImport("user32.dll")]
