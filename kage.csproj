@@ -1,12 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- вказуємо тип виходу: графічний додаток Windows -->
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
+
+    <!-- вказуємо ім'я вихідного файлу bro.exe -->
+    <AssemblyName>bro</AssemblyName>
+
+    <!-- вмикаємо нативний розмір шрифтів на рівні маніфесту проекту (High DPI) -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- завантаження ядра WebView2 від Microsoft -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
   </ItemGroup>
 </Project>
