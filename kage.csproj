@@ -11,6 +11,8 @@
 
     <!-- вмикаємо нативний розмір шрифтів на рівні маніфесту проекту (High DPI) -->
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- приглушуємо попередження про конфлікт версій WindowsBase у WebView2 -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
