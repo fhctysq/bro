@@ -40,7 +40,10 @@ class MinimalAiApp : Form {
         this.Height = 1280;
 
         webView = new WebView2 { Dock = DockStyle.Fill };  // ініціюємо WebView2 та розтягуємо його на все вікно без рамок
-     
+
+        this.Padding = new Padding(0);   // занулюємо системні відступи форми
+        // темний колір фону для самого WebView2 (фарбує білу смугу)
+        webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(20, 20, 22);
         this.BackColor = System.Drawing.Color.FromArgb(22, 22, 22);   // фарбуємо білий фон форми, що виходить за межі
         
         this.FormBorderStyle = FormBorderStyle.None;   // прибираємо стандартний громіздкий системний заголовок Windows
@@ -162,20 +165,24 @@ class MinimalAiApp : Form {
 
         // кастомний CSS
         string myCustomCss = @"
-            /* гнучка ширина: не менше 800px, відносно 85% екрана, але не більше 1200px */
+            /* ширина контейнерів майже на всю ширину вікна */
+            main, 
+            .main-content, 
             .conversation-container, 
-            main .main-content, 
-            .response-container-content,
-            message-content {
-                width: clamp(800px, 85vw, 1200px) !important;
+            message-content, 
+            .response-container-content {
                 max-width: 95% !important;
+                width: 95% !important;
             }
 
-            /* блоки коду: робимо їх гнучкими + дозволяємо змінювати розмір вручну мишкою */
-            code-block, pre {
-                width: 100% !important;
-                resize: horizontal !important; /* можна потягнути за куток коду і розширити */
+            /* робимо блоки коду гнучкими + дозволяємо змінювати розмір вручну мишкою */
+            code-block, pre, .code-block-decoration {
+                display: block !important;
                 overflow: auto !important;
+                resize: horizontal !important; /* можна потягнути за куток коду і розширити */
+                min-width: 500px !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
             }
         ";
 
