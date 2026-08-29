@@ -7,6 +7,8 @@ using Microsoft.Web.WebView2.WinForms;
 class MinimalAiApp : Form {
     private WebView2 webView;  // основний контейнер рендерингу Chromium
     private TextBox urlInput;  // для введення адрес
+    private Panel topBar;
+    private Button btnMin, btnMax, btnClose; // робимо кнопки полями класу
 
     // Win32 API для перетягування вікна за верхній рядок
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -175,54 +177,54 @@ class MinimalAiApp : Form {
         };
 
         // кастомний CSS
-        string myCustomCss = @"
-            /* перевизначаємо системні CSS-змінні Gemini для широкого екрана */
-            :root, body, main {
-                --chat-max-width: 98% !important;
-                --message-max-width: 98% !important;
-            }
+        // string myCustomCss = @"
+        //     /* перевизначаємо системні CSS-змінні Gemini для широкого екрана */
+        //     :root, body, main {
+        //         --chat-max-width: 98% !important;
+        //         --message-max-width: 98% !important;
+        //     }
         
-            /* ширина контейнерів майже на всю ширину вікна */
-            .conversation-container, 
-            main .main-content, 
-            message-content, 
-            .response-container-content,
-            p-element{
-                max-width: 95% !important;
-                width: 95% !important;
-            }
+        //     /* ширина контейнерів майже на всю ширину вікна */
+        //     .conversation-container, 
+        //     main .main-content, 
+        //     message-content, 
+        //     .response-container-content,
+        //     p-element{
+        //         max-width: 95% !important;
+        //         width: 95% !important;
+        //     }
 
-            /* робимо блоки коду гнучкими + дозволяємо змінювати розмір вручну мишкою */
-            code-block, pre, .code-block-decoration {
-                display: block !important;
-                width: 95% !important;
-                max-width: 95% !important;
-            }
-            /* горизонтальна прокрутка та повну довжину для довгих рядків коду */
-            code-block pre, code-block code {
-                white-space: pre !important;
-                word-break: normal !important;
-                overflow-x: auto !important;
-            }
-        ";
-            //     overflow: auto !important;
-            //     resize: horizontal !important; /* можна потягнути за куток коду і розширити */
-            //     min-width: 500px !important;
-            //     max-width: 100% !important;
-            //     box-sizing: border-box !important;
-            // }
+        //     /* робимо блоки коду гнучкими + дозволяємо змінювати розмір вручну мишкою */
+        //     code-block, pre, .code-block-decoration {
+        //         display: block !important;
+        //         width: 95% !important;
+        //         max-width: 95% !important;
+        //     }
+        //     /* горизонтальна прокрутка та повну довжину для довгих рядків коду */
+        //     code-block pre, code-block code {
+        //         white-space: pre !important;
+        //         word-break: normal !important;
+        //         overflow-x: auto !important;
+        //     }
+        // ";
+        //     //     overflow: auto !important;
+        //     //     resize: horizontal !important; /* можна потягнути за куток коду і розширити */
+        //     //     min-width: 500px !important;
+        //     //     max-width: 100% !important;
+        //     //     box-sizing: border-box !important;
+        //     // }
 
-        // JS-скрипт, який буде вбудовуватися у сторінку в момент створення DOM-дерева
-        string injectScript = $@"
-            document.addEventListener('DOMContentLoaded', () => {{
-                let style = document.createElement('style');
-                style.innerHTML = `{myCustomCss}`;
-                document.head.appendChild(style);
-            }});
-        ";
+        // // JS-скрипт, який буде вбудовуватися у сторінку в момент створення DOM-дерева
+        // string injectScript = $@"
+        //     document.addEventListener('DOMContentLoaded', () => {{
+        //         let style = document.createElement('style');
+        //         style.innerHTML = `{myCustomCss}`;
+        //         document.head.appendChild(style);
+        //     }});
+        // ";
 
         // автоматично ін'єктуємо CSS при кожному переході чи оновленні сторінки
-        await core.AddScriptToExecuteOnDocumentCreatedAsync(injectScript);
+        // await core.AddScriptToExecuteOnDocumentCreatedAsync(injectScript);
 
         // відкриваємо Gemini
         core.Navigate("https://gemini.google.com");
