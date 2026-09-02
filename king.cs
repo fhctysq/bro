@@ -332,15 +332,21 @@ class MinimalAiApp : Form {
 
     // ініціалізація та налаштування веб-рушія
     private async void InitWebView(object? sender, EventArgs e) {
-        // прапорці оптимізації рушія Chromium:
-        // --disk-cache-size=1: жорстко обмежує запис кешу на накопичувач
-        // --media-cache-size=1: вимикає накопичення аудіо- та відеокешу
-        // --disable-background-networking: вимикає фонові службові запити Google
-        // --disable-component-update: вимикає завантаження фонових модулів Chromium
-        var args = "--disk-cache-size=1 " +
-                   "--media-cache-size=1 " +
-                   "--disable-background-networking " +
-                   "--disable-component-update";
+        var args =    // прапорці оптимізації рушія Chromium для WebView2:
+            // блокування логування та дампів
+            "--disable-logging " +
+            "--log-level=3 " +
+            "--disable-crash-reporter " +
+            "--disable-breakpad " +
+            // вимкнення дискового кешу перенаправляє файли кешу у системну "чорну діру" Windows, лише Cookies та LocalStorage залишаться у папці bro_profile
+            "--disk-cache-dir=NUL " + 
+            "--media-cache-size=1 " +      // вимикаємо накопичення аудіо- та відеокешу на ssd
+            // зниження фонової активності та телеметрії
+            "--disable-background-networking " +   // вимикаємо фонові службові запити Google
+            "--disable-component-update " +        // вимикаємо завантаження фонових модулів Chromium
+            "--disable-sync " +
+            "--no-first-run " +
+            "--disable-features=OptimizationHints,AutofillServerCommunication,EdgeFeedback,msSmartScreenProtection";
 
         // профіль (авторизація, налаштування) у теці поряд із виконуваним файлом
         string userDataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bro_profile");
