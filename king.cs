@@ -338,61 +338,63 @@ class MinimalAiApp : Form {
 
     // ініціалізація та налаштування веб-рушія
     private async void InitWebView(object? sender, EventArgs e) {
-        var args =    // прапорці оптимізації рушія Chromium для WebView2:
-            // блокування логування та дампів
-            "--disable-logging " +
-            "--log-level=3 " +
-            "--disable-crash-reporter " +
-            "--disable-breakpad " +
-            // вимкнення дискового кешу перенаправляє файли кешу у системну "чорну діру" Windows, лише Cookies та LocalStorage залишаться у папці bro_profile
-            "--disk-cache-dir=NUL " + 
-            "--media-cache-size=1 " +      // вимикаємо накопичення аудіо- та відеокешу на ssd
-            // зниження фонової активності та телеметрії
-            "--disable-background-networking " +   // вимикаємо фонові службові запити Google
-            "--disable-component-update " +        // вимикаємо завантаження фонових модулів Chromium
-            "--disable-sync " +
-            "--no-first-run " +
-            "--disable-features=OptimizationHints,AutofillServerCommunication,EdgeFeedback,msSmartScreenProtection";
-
-        // профіль (авторизація, налаштування) у теці поряд із виконуваним файлом
-        string userDataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bro_profile");
-        var options = new CoreWebView2EnvironmentOptions(args);
-        var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
-
-        await webView.EnsureCoreWebView2Async(env);   // старт ізольованого середовища
-
-        zoomFile = Path.Combine(userDataFolder, "zoom.txt");  // читання та застосування збереженого рівня масштабування сторінки
-        lastFile = Path.Combine(userDataFolder, "last.txt");
-        boundsFile = Path.Combine(userDataFolder, "bounds.txt");
-
-        var core = webView.CoreWebView2;
-            
-        // прибираємо білий спалах перед завантаженням сторінки
-        core.Profile.PreferredColorScheme = CoreWebView2PreferredColorScheme.Dark;
-
-        // блокування аналітики та телеметрії (з фіксом MemoryStream)
-        core.AddWebResourceRequestedFilter("*google-analytics.com*", CoreWebView2WebResourceContext.All);
-        core.AddWebResourceRequestedFilter("*googletagmanager.com*", CoreWebView2WebResourceContext.All);
-        core.AddWebResourceRequestedFilter("*doubleclick.net*", CoreWebView2WebResourceContext.All);
-            
-        core.WebResourceRequested += (s, reqArgs) => {   // повертаємо статус 404 замість завантаження трекерів для економії ресурсів
-            reqArgs.Response = core.Environment.CreateWebResourceResponse(new MemoryStream(), 404, "Blocked", "");
-        };
-
-        core.SourceChanged += (s, args) => { urlInput.Text = core.Source; }; // синхронізуємо адресу у рядку вводу при переходах за посиланнями
-
-        // відкладений запис масштабу (Debounce) при його зміні (Ctrl + коліщатко миші)
-        zoomTimer.Tick += (s, a) => {
-            zoomTimer.Stop();
-            try { File.WriteAllText(zoomFile, webView.ZoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }
-        };
-        webView.ZoomFactorChanged += (s, a) => { zoomTimer.Stop(); zoomTimer.Start(); };
-
-        RestoreState(); // відновлюємо розмір вікна, масштаб та останню адресу
-    }
-    catch (Exception ex) {
-        MessageBox.Show($"Помилка ініціалізації рушія:\n{ex.Message}", "Критична помилка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        this.Close();
+        try {
+            var args =    // прапорці оптимізації рушія Chromium для WebView2:
+                // блокування логування та дампів
+                "--disable-logging " +
+                "--log-level=3 " +
+                "--disable-crash-reporter " +
+                "--disable-breakpad " +
+                // вимкнення дискового кешу перенаправляє файли кешу у системну "чорну діру" Windows, лише Cookies та LocalStorage залишаться у папці bro_profile
+                "--disk-cache-dir=NUL " + 
+                "--media-cache-size=1 " +      // вимикаємо накопичення аудіо- та відеокешу на ssd
+                // зниження фонової активності та телеметрії
+                "--disable-background-networking " +   // вимикаємо фонові службові запити Google
+                "--disable-component-update " +        // вимикаємо завантаження фонових модулів Chromium
+                "--disable-sync " +
+                "--no-first-run " +
+                "--disable-features=OptimizationHints,AutofillServerCommunication,EdgeFeedback,msSmartScreenProtection";
+    
+            // профіль (авторизація, налаштування) у теці поряд із виконуваним файлом
+            string userDataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bro_profile");
+            var options = new CoreWebView2EnvironmentOptions(args);
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
+    
+            await webView.EnsureCoreWebView2Async(env);   // старт ізольованого середовища
+    
+            zoomFile = Path.Combine(userDataFolder, "zoom.txt");  // читання та застосування збереженого рівня масштабування сторінки
+            lastFile = Path.Combine(userDataFolder, "last.txt");
+            boundsFile = Path.Combine(userDataFolder, "bounds.txt");
+    
+            var core = webView.CoreWebView2;
+                
+            // прибираємо білий спалах перед завантаженням сторінки
+            core.Profile.PreferredColorScheme = CoreWebView2PreferredColorScheme.Dark;
+    
+            // блокування аналітики та телеметрії (з фіксом MemoryStream)
+            core.AddWebResourceRequestedFilter("*google-analytics.com*", CoreWebView2WebResourceContext.All);
+            core.AddWebResourceRequestedFilter("*googletagmanager.com*", CoreWebView2WebResourceContext.All);
+            core.AddWebResourceRequestedFilter("*doubleclick.net*", CoreWebView2WebResourceContext.All);
+                
+            core.WebResourceRequested += (s, reqArgs) => {   // повертаємо статус 404 замість завантаження трекерів для економії ресурсів
+                reqArgs.Response = core.Environment.CreateWebResourceResponse(new MemoryStream(), 404, "Blocked", "");
+            };
+    
+            core.SourceChanged += (s, args) => { urlInput.Text = core.Source; }; // синхронізуємо адресу у рядку вводу при переходах за посиланнями
+    
+            // відкладений запис масштабу (Debounce) при його зміні (Ctrl + коліщатко миші)
+            zoomTimer.Tick += (s, a) => {
+                zoomTimer.Stop();
+                try { File.WriteAllText(zoomFile, webView.ZoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }
+            };
+            webView.ZoomFactorChanged += (s, a) => { zoomTimer.Stop(); zoomTimer.Start(); };
+    
+            RestoreState(); // відновлюємо розмір вікна, масштаб та останню адресу
+        }
+        catch (Exception ex) {
+            MessageBox.Show($"Помилка ініціалізації рушія:\n{ex.Message}", "Критична помилка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            this.Close();
+        }
     }
 
     private void RestoreState() {  // функція відновлення стану при запуску
