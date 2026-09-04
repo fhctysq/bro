@@ -37,6 +37,12 @@ class MinimalAiApp : Form {
     private const int BORDER_WIDTH = 2; // ширина ділянки захоплення для зміни розміру вікна мишкою
     private Rectangle normalBounds; // збережені розміри та координати вікна до його розгортання
 
+    // змінні збереження стану
+    private string zoomFile = "";
+    private string lastFile = "";
+    private string boundsFile = "";
+    private System.Windows.Forms.Timer zoomTimer = new System.Windows.Forms.Timer { Interval = 600 };
+
         [StructLayout(LayoutKind.Sequential)]
     private struct POINT {
         public int x;
@@ -355,34 +361,93 @@ class MinimalAiApp : Form {
 
         await webView.EnsureCoreWebView2Async(env);   // старт ізольованого середовища
 
-        // зчитування та застосування збереженого рівня масштабування сторінки
-        string zoomFile = Path.Combine(userDataFolder, "zoom.txt");
-        if (File.Exists(zoomFile) && double.TryParse(File.ReadAllText(zoomFile), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double savedZoom)) {
-            webView.ZoomFactor = savedZoom; // відновлюємо збережений масштаб
-        }
-
-        // автоматичне збереження масштабу при його зміні користувачем (Ctrl + коліщатко миші)
-        webView.ZoomFactorChanged += (s, args) => {
-            try {
-                File.WriteAllText(zoomFile, webView.ZoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            } catch { }
-        };
+        zoomFile = Path.Combine(userDataFolder, "zoom.txt");  // читання та застосування збереженого рівня масштабування сторінки
+        lastFile = Path.Combine(userDataFolder, "last.txt");
+        boundsFile = Path.Combine(userDataFolder, "bounds.txt");
 
         var core = webView.CoreWebView2;
+            
+        // прибираємо білий спалах перед завантаженням сторінки
+        core.Profile.PreferredColorScheme = CoreWebView2PreferredColorScheme.Dark;
 
-        // блокування аналітики та телеметрії
+        // блокування аналітики та телеметрії (з фіксом MemoryStream)
         core.AddWebResourceRequestedFilter("*google-analytics.com*", CoreWebView2WebResourceContext.All);
         core.AddWebResourceRequestedFilter("*googletagmanager.com*", CoreWebView2WebResourceContext.All);
+        core.AddWebResourceRequestedFilter("*doubleclick.net*", CoreWebView2WebResourceContext.All);
+            
+        core.WebResourceRequested += (s, reqArgs) => {   // повертаємо статус 404 замість завантаження трекерів для економії ресурсів
+            reqArgs.Response = core.Environment.CreateWebResourceResponse(new MemoryStream(), 404, "Blocked", "");
+        };
+
+        core.SourceChanged += (s, args) => { urlInput.Text = core.Source; }; // синхронізуємо адресу у рядку вводу при переходах за посиланнями
+
+        // відкладений запис масштабу (Debounce) при його зміні (Ctrl + коліщатко миші)
+        zoomTimer.Tick += (s, a) => {
+            zoomTimer.Stop();
+            try { File.WriteAllText(zoomFile, webView.ZoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }
+        };
+        webView.ZoomFactorChanged += (s, a) => { zoomTimer.Stop(); zoomTimer.Start(); };
+
+        RestoreState(); // відновлюємо розмір вікна, масштаб та останню адресу
+    }
+    catch (Exception ex) {
+        MessageBox.Show($"Помилка ініціалізації рушія:\n{ex.Message}", "Критична помилка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        this.Close();
+    }
+
+    private void RestoreState() {  // функція відновлення стану при запуску
+        try {        // відновлення збереженого масштабу
+            if (File.Exists(zoomFile) && double.TryParse(File.ReadAllText(zoomFile), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double z)) {
+                if (z >= 0.25 && z <= 5.0) webView.ZoomFactor = z; 
+            }
+        } catch { }
+
+        try {     // відновлення позиції та розміру вікна
+            if (File.Exists(boundsFile)) {
+                var parts = File.ReadAllText(boundsFile).Split(',');
+                if (parts.Length == 5) {
+                    this.normalBounds = new Rectangle(int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]), int.Parse(parts[3]));
+                    this.Bounds = this.normalBounds;
+                    this.WindowState = (FormWindowState)int.Parse(parts[4]);
+                }
+            }
+        } catch { }
+
+        string startUrl = "https://gemini.google.com";  // початкова сторінка за замовчуванням
+        try {     // відновлення останньої адреси
+            if (File.Exists(lastFile)) {
+                string saved = File.ReadAllText(lastFile).Trim();
+                if (Uri.TryCreate(saved, UriKind.Absolute, out var u) && (u.Scheme == "http" || u.Scheme == "https")) {
+                    startUrl = saved;
+                }
+            }
+        } catch { }
+
+        webView.CoreWebView2.Navigate(startUrl);
+    }
+
+    private void SaveState() {   // зберігаємо масштаб, якщо таймер не встиг спрацювати
+        try { File.WriteAllText(zoomFile, webView.ZoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }
         
-        // повертаємо статус 404 замість завантаження трекерів для економії ресурсів
-        core.WebResourceRequested += (s, reqArgs) => {
-            reqArgs.Response = core.Environment.CreateWebResourceResponse(null, 404, "Blocked", "");
-        };
+        try {    // зберігаємо останню адресу
+            string src = webView?.CoreWebView2?.Source ?? "";
+            if (src.StartsWith("http://") || src.StartsWith("https://")) {
+                File.WriteAllText(lastFile, src); 
+            }
+        } catch { }
 
-        core.SourceChanged += (s, args) => {   // синхронізація поточної адреси у рядку вводу при переходах за посиланнями
-            urlInput.Text = core.Source;
-        };
+        try {     // зберігаємо координати та стан вікна
+            var state = this.WindowState == FormWindowState.Minimized ? FormWindowState.Normal : this.WindowState;
+            string b = $"{normalBounds.Left},{normalBounds.Top},{normalBounds.Width},{normalBounds.Height},{(int)state}";
+            File.WriteAllText(boundsFile, b);
+        } catch { }
+    }
 
-        core.Navigate("https://gemini.google.com");  // початкова сторінка за замовчуванням
+    protected override void OnFormClosed(FormClosedEventArgs e) {  // при закритті додатку
+        SaveState();          // записуємо стан на диск
+        zoomTimer?.Stop();    // зупиняємо таймери
+        zoomTimer?.Dispose(); 
+        webView?.Dispose();   // миттєво вбиваємо процеси Chromium
+        base.OnFormClosed(e);
     }
 }
