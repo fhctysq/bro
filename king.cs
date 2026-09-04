@@ -377,7 +377,7 @@ class MinimalAiApp : Form {
             core.AddWebResourceRequestedFilter("*doubleclick.net*", CoreWebView2WebResourceContext.All);
                 
             core.WebResourceRequested += (s, reqArgs) => {   // повертаємо статус 404 замість завантаження трекерів для економії ресурсів
-                reqArgs.Response = core.Environment.CreateWebResourceResponse(new MemoryStream(), 404, "Blocked", "");
+                reqArgs.Response = core.Environment.CreateWebResourceResponse(Stream.Null, 404, "Blocked", "");
             };
     
             core.SourceChanged += (s, args) => { urlInput.Text = core.Source; }; // синхронізуємо адресу у рядку вводу при переходах за посиланнями
@@ -398,6 +398,7 @@ class MinimalAiApp : Form {
     }
 
     private void RestoreState() {  // функція відновлення стану при запуску
+        if (webView?.CoreWebView2 == null) return;  // захист від NullReferenceException
         try {        // відновлення збереженого масштабу
             if (File.Exists(zoomFile) && double.TryParse(File.ReadAllText(zoomFile), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double z)) {
                 if (z >= 0.25 && z <= 5.0) webView.ZoomFactor = z; 
@@ -428,17 +429,18 @@ class MinimalAiApp : Form {
         webView.CoreWebView2.Navigate(startUrl);
     }
 
-    private void SaveState() {   // зберігаємо масштаб, якщо таймер не встиг спрацювати
-        try { File.WriteAllText(zoomFile, webView.ZoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }
-        
-        try {    // зберігаємо останню адресу
-            string src = webView?.CoreWebView2?.Source ?? "";
-            if (src.StartsWith("http://") || src.StartsWith("https://")) {
-                File.WriteAllText(lastFile, src); 
-            }
-        } catch { }
+    private void SaveState() {
+        if (webView?.CoreWebView2 != null) {   // перевіряємо, чи встиг ініціалізуватися рушій перед закриттям
+            try { File.WriteAllText(zoomFile, webView.ZoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }   // зберігаємо масштаб, якщо таймер не встиг спрацювати
+            try {    // зберігаємо останню адресу
+                string src = webView.CoreWebView2.Source ?? "";
+                if (src.StartsWith("http://") || src.StartsWith("https://")) {
+                    File.WriteAllText(lastFile, src); 
+                }
+            } catch { }
+        }
 
-        try {     // зберігаємо координати та стан вікна
+        try {       // зберігаємо координати та розміри вікна незалежно від WebView2
             var state = this.WindowState == FormWindowState.Minimized ? FormWindowState.Normal : this.WindowState;
             string b = $"{normalBounds.Left},{normalBounds.Top},{normalBounds.Width},{normalBounds.Height},{(int)state}";
             File.WriteAllText(boundsFile, b);
