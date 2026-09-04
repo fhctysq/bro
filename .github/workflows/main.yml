@@ -21,7 +21,7 @@ jobs:
       with:
         dotnet-version: 8.0.x
     - name: Build
-      run: dotnet publish -c Release -r win-x64 --self-contained false -o ./output /p:PublishReadyToRun=true /p:OptimizationPreference=Size /p:ApplicationIcon='s.ico
+      run: dotnet publish -c Release -r win-x64 --self-contained false -o ./output /p:PublishReadyToRun=true /p:OptimizationPreference=Size /p:ApplicationIcon=s.ico
     - name: Upload Executable
       uses: actions/upload-artifact@v4
       with:
